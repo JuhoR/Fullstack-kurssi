@@ -59,8 +59,11 @@ const App = () => {
               setPersons(persons.concat(returned))
               setSuccess(`Added ${person.name}`)
               setTimeout(() => setSuccess(null), 5000)
-            }
-            );
+            }).catch(error =>{
+              //console.log(error.response.data.error)
+              setError(`${error.response.data.error}`)
+              setTimeout(() => setError(null), 5000)
+            });
       setNewName('')
       setNewNumber('')
   }
