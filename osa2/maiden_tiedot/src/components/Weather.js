@@ -13,7 +13,8 @@ const Weather = ({country}) => {
   }
   const [weather, setWeather] = useState(def)
   // haetaan pääkaupungin sää weatherstack.com:sta
-  const url = 'http://api.weatherstack.com/current?access_key=d4b140e8f49b1acef2ccc6d7f9b860d1&query='+country.capital
+  const api_key = process.env.REACT_APP_API_KEY
+  const url = 'http://api.weatherstack.com/current?access_key='+api_key+'&query='+country.capital
   console.log(url)
   useEffect(() => {
     axios
