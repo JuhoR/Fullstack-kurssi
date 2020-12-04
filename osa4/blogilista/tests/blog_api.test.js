@@ -2,7 +2,7 @@ const mongoose = require('mongoose')
 const supertest = require('supertest')
 const app = require('../app')
 const Blog = require('../models/blog')
-
+const User = require('../models/user')
 const api = supertest(app)
 
 const initialBlogs = [
@@ -43,110 +43,148 @@ const initialBlogs = [
     likes: 2,
   }
 ]
+describe('Tests for adding and removing blogs', () => {
+  let token
 
-beforeEach(async () => {
-  await Blog.deleteMany({})
-  await Blog.insertMany(initialBlogs)
-  //let blogObject = new Blog(initialBlogs[0])
-  //await blogObject.save()
+  beforeAll(async () => {
+    //create a new user and log in
+    const testUser = {username: 'Test', name: 'Test', password: 'Test'}
+    const response = await api.post('/api/users').send(testUser)
+    console.log(response.status)
+  })
 
-  //blogObject = new Blog(initialBlogs[1])
-  //await blogObject.save()
-})
+  
+  beforeEach(async () => {
+    await Blog.deleteMany({})
+    await Blog.insertMany(initialBlogs)
 
-test('Data returned as json', async () => {
-  await api
-    .get('/api/blogs')
-    .expect(200)
-    .expect('Content-Type', /application\/json/)
-})
+    //log in
+    const response = await api.post('/api/login').send({username: 'Test', password: 'Test'})
+    token = 'Bearer ' + response.body.token
+    //let blogObject = new Blog(initialBlogs[0])
+    //await blogObject.save()
+    
+    //blogObject = new Blog(initialBlogs[1])
+    //await blogObject.save()
+  })
 
-test('All blogs are returned', async () => {
-  const response = await api.get('/api/blogs')
-  expect(response.body.length).toBe(initialBlogs.length)
-})
+  test('Data returned as json', async () => {
+    await api
+      .get('/api/blogs')
+      .expect(200)
+      .expect('Content-Type', /application\/json/)
+  })
 
-test('Blogs have an id field', async () => {
-  const response = await api.get('/api/blogs')
-  expect(response.body[0].id).toBeDefined()
-})
+  test('All blogs are returned', async () => {
+    const response = await api.get('/api/blogs')
+    expect(response.body.length).toBe(initialBlogs.length)
+  })
 
-test('A blog can be added to the database by a post method', async () => {
-  const newBlog = {
-    title: 'something inappropriate',
-    author: 'Juho',
-    url: 'xxyy.zz',
-    likes: 666
-  }
-  await api
-    .post('/api/blogs')
-    .send(newBlog)
-    .expect(201)
-    .expect('Content-Type', /application\/json/)
+  test('Blogs have an id field', async () => {
+    const response = await api.get('/api/blogs')
+    expect(response.body[0].id).toBeDefined()
+  })
 
-  const response = await api.get('/api/blogs')
-  const titles = response.body.map(r => r.title)
-  expect(response.body.length).toBe(initialBlogs.length + 1)
-  expect(response.body[2].id).toBeDefined()
-  expect(titles).toContain('something inappropriate')
-})
+  
+  test('A blog can be added to the database by a post method', async () => {
+    const newBlog = {
+      title: 'something inappropriate',
+      author: 'Juho',
+      url: 'xxyy.zz',
+      likes: 666
+    }
+    await api
+      .post('/api/blogs')
+      .send(newBlog)
+      .set('Authorization', token)
+      .expect(201)
+      .expect('Content-Type', /application\/json/)
 
-test('If no initial likes given, likes initialized to zero', async () => {
-  const newBlog = {
-    title: 'something inappropriate',
-    author: 'Juho',
-    url: 'xxyy.zz',
-  }
+    const response = await api.get('/api/blogs')
+    const titles = response.body.map(r => r.title)
+    expect(response.body.length).toBe(initialBlogs.length + 1)
+    expect(response.body[2].id).toBeDefined()
+    expect(titles).toContain('something inappropriate')
+  })
 
-  await api
-    .post('/api/blogs')
-    .send(newBlog)
+  
+  test('If no initial likes given, likes initialized to zero', async () => {
+    const newBlog = {
+      title: 'something inappropriate',
+      author: 'Juho',
+      url: 'xxyy.zz',
+    }
 
-  const response = await api.get('/api/blogs')
-  const likes = response.body[initialBlogs.length].likes
-  expect(likes).toEqual(0)
-})
+    await api
+      .post('/api/blogs')
+      .send(newBlog)
+      .set('Authorization', token)
 
-test('Status code 400 if title or url field missing', async () => {
-  const newBlog = {
-    author: 'Juho',
-    likes: 0
-  }
-  await api
-    .post('/api/blogs')
-    .send(newBlog)
-    .expect(400)
-})
+    const response = await api.get('/api/blogs')
+    const likes = response.body[initialBlogs.length].likes
+    expect(likes).toEqual(0)
+  })
 
-test('Deleted object not in database', async () => {
-  let response = await api.get('/api/blogs')
-  const id = response.body[1].id
-  await api
-    .delete(`/api/blogs/${id}`)
-    .expect(204)
-  response = await api.get('/api/blogs')
-  const ids = response.body.map(b => b.id)
-  expect(response.body.length).toBe(initialBlogs.length-1)
-  expect(ids).not.toContain(id)
-})
+  test('Status code 400 if title or url field missing', async () => {
+    const newBlog = {
+      author: 'Juho',
+      likes: 0
+    }
+    await api
+      .post('/api/blogs')
+      .send(newBlog)
+      .set('Authorization', token)
+      .expect(400)
+  })
 
-test('A database entry can be updated using the put method', async () => {
-  newBlog = {
-    title: 'aaaa',
-    author: 'bbbb',
-    url: 'cccc',
-    likes: 999
-  }
-  let response = await api.get('/api/blogs')
-  const id = response.body[1].id
-  await api
-    .put(`/api/blogs/${id}`)
-    .send(newBlog)
-    .expect(200)
-  response = await api.get('/api/blogs')
-  expect(response.body[1].title).toBe(newBlog.title)
-  expect(response.body[1].likes).toBe(newBlog.likes)
-})
-afterAll(() => {
-  mongoose.connection.close()
+
+  test('Adding a blog fails with status 401 if no token', async () => {
+    const newBlog = {
+      title: 'something inappropriate',
+      author: 'Juho',
+      url: 'xxyy.zz',
+      likes: 666
+    }
+
+    await api
+      .post('/api/blogs')
+      .send(newBlog)
+      .expect(401)
+  })
+  
+
+/**  test('Deleted object not in database', async () => {
+    let response = await api.get('/api/blogs')
+    const id = response.body[1].id
+    await api
+      .delete(`/api/blogs/${id}`)
+      .expect(204)
+    response = await api.get('/api/blogs')
+    const ids = response.body.map(b => b.id)
+    expect(response.body.length).toBe(initialBlogs.length-1)
+    expect(ids).not.toContain(id)
+  })
+
+  test('A database entry can be updated using the put method', async () => {
+    newBlog = {
+      title: 'aaaa',
+      author: 'bbbb',
+      url: 'cccc',
+      likes: 999
+    }
+    let response = await api.get('/api/blogs')
+    const id = response.body[1].id
+    await api
+      .put(`/api/blogs/${id}`)
+      .send(newBlog)
+      .expect(200)
+    response = await api.get('/api/blogs')
+    expect(response.body[1].title).toBe(newBlog.title)
+    expect(response.body[1].likes).toBe(newBlog.likes)
+  })
+  **/
+  afterAll(async () => {
+    await User.deleteMany({})
+    mongoose.connection.close()
+  })
 })
