@@ -1,6 +1,6 @@
 
 const initialNotification = ''
-
+let timeoutID
 export const voteNotification = (anecdote) => {
   return {
     type: 'VOTE',
@@ -16,11 +16,12 @@ export const emptyNotification = () => {
 
 export const setNotification = (message, time) => {
   return dispatch => {
+    clearTimeout(timeoutID)
     dispatch({
       type: "SET",
       data: message
     })
-    setTimeout(() => dispatch({type: "SET", data: ""}), time*1000)
+    timeoutID = setTimeout(() => dispatch({type: "SET", data: ""}), time*1000)
   }
 }
 
